@@ -44,6 +44,24 @@ except:
     def upath(path):
         return path
 
+try:
+    from django.db.models.loading import get_apps
+except ImportError:
+    try:
+        from django.db.models import get_apps
+    except ImportError:
+        from django.apps import apps
+
+        def get_apps():
+            """Emulate get_apps in Django 1.9 and later."""
+            return [a.models_module for a in apps.get_app_configs()]
+
+        def load_app(module_label):
+            for a in apps.get_app_configs():
+                if module_label and module_label.endswith(a.models_module.__name__):
+                    return a.models_module
+
+
 from django.utils import six
 
 
@@ -92,12 +110,10 @@ def get_test_modules():
     return modules
 
 def get_installed():
-    from django.db.models.loading import get_apps
     return [app.__name__.rsplit('.', 1)[0] for app in get_apps() if not app.__name__.startswith('django.contrib')]
 
 def setup(verbosity, test_labels):
     from django.conf import settings
-    from django.db.models.loading import get_apps, load_app
     from django.test.testcases import TransactionTestCase, TestCase
 
     # Force declaring available_apps in TransactionTestCase for faster tests.
